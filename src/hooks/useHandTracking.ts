@@ -1,0 +1,193 @@
+import { useEffect, useRef, type RefObject } from "react";
+import {
+  FilesetResolver,
+  HandLandmarker,
+} from "@mediapipe/tasks-vision";
+
+const useHandTracking = (
+  videoRef: RefObject<HTMLVideoElement | null>,
+  canvasRef: RefObject<HTMLCanvasElement | null>
+) => {
+  const handLandmarkerRef = useRef<HandLandmarker | null>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const previousPointRef = useRef<{ x: number; y: number } | null>(null);
+  const smoothedPointRef = useRef<{ x: number; y: number } | null>(null);
+  const lastVideoTimeRef = useRef(-1);
+  const lostFramesRef = useRef(0);  
+  useEffect(() => {
+    const loadModel = async () => {
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
+      );
+
+      const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+        },
+        runningMode: "VIDEO",
+        numHands: 1,
+      });
+
+      handLandmarkerRef.current = handLandmarker;
+
+      console.log("✅ Hand model loaded");
+    };
+
+    const detectHands = () => {
+      if (!handLandmarkerRef.current) {
+        requestAnimationFrame(detectHands);
+        return;
+      }
+
+      if (!videoRef.current) {
+        requestAnimationFrame(detectHands);
+        return;
+      }
+
+      if (!canvasRef.current) {
+        requestAnimationFrame(detectHands);
+        return;
+      }
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (canvas.width !== video.videoWidth) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+
+      if (!ctxRef.current) {
+        ctxRef.current = canvas.getContext("2d");
+      }
+
+      if (video.readyState < 2) {
+        requestAnimationFrame(detectHands);
+        return;
+      }
+
+      if (video.currentTime === lastVideoTimeRef.current) {
+        requestAnimationFrame(detectHands);
+        return;
+      }
+
+      lastVideoTimeRef.current = video.currentTime;
+
+      const results = handLandmarkerRef.current.detectForVideo(
+        video,
+        video.currentTime * 1000
+      );
+
+      if (results.landmarks.length === 0) {
+  lostFramesRef.current++;
+
+  if (lostFramesRef.current > 5) {
+    previousPointRef.current = null;
+    smoothedPointRef.current = null;
+  }
+
+  requestAnimationFrame(detectHands);
+  return;
+}
+
+      lostFramesRef.current = 0;
+
+      const hand = results.landmarks[0];
+      const thumbTip = hand[4];
+      const indexTip = hand[8];
+      const indexOpen = hand[8].y > hand[5].y;
+      const middleOpen = hand[12].y > hand[9].y;
+      const ringOpen = hand[16].y > hand[13].y;
+      const pinkyOpen = hand[20].y > hand[17].y;
+      // const thumbOpen = hand[4].x < hand[3].x;
+      if (
+        // thumbOpen &&
+        indexOpen &&
+        middleOpen &&
+        ringOpen &&
+        pinkyOpen
+      ) {
+        console.log("fist detected");
+      }
+      const dx = thumbTip.x - indexTip.x;
+      const dy = thumbTip.y - indexTip.y;
+
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      console.log(distance);
+      // let tool = "none";
+
+      // Distance between thumb and index
+      
+      if (distance < 0.09 && ctxRef.current) {
+        const ctx = ctxRef.current;
+
+        const rawX = indexTip.x * canvas.width;
+        const rawY = indexTip.y * canvas.height;
+
+        let x = rawX;
+        let y = rawY;
+
+        if (smoothedPointRef.current) {
+          const smoothing = 0.18;
+
+          x =
+            smoothedPointRef.current.x +
+            (rawX - smoothedPointRef.current.x) * smoothing;
+
+          y =
+            smoothedPointRef.current.y +
+            (rawY - smoothedPointRef.current.y) * smoothing;
+        }
+
+        smoothedPointRef.current = { x, y };
+
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 8;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        if (!previousPointRef.current) {
+          previousPointRef.current = { x, y };
+        } else {
+          const dx = x - previousPointRef.current.x;
+          const dy = y - previousPointRef.current.y;
+
+          const movement = Math.sqrt(dx * dx + dy * dy);
+
+          if (movement > 2) {
+            const midX = (previousPointRef.current.x + x) / 2;
+            const midY = (previousPointRef.current.y + y) / 2;
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+              previousPointRef.current.x,
+              previousPointRef.current.y
+            );
+
+            ctx.quadraticCurveTo(
+              previousPointRef.current.x,
+              previousPointRef.current.y,
+              midX,
+              midY
+            );
+
+            ctx.stroke();
+
+            previousPointRef.current = { x, y };
+          }
+        }
+      } else {
+        previousPointRef.current = null;
+        smoothedPointRef.current = null;
+      }
+
+      requestAnimationFrame(detectHands);
+    };
+
+    loadModel();
+    detectHands();
+  }, [videoRef, canvasRef]);
+};
+
+export default useHandTracking;

@@ -1,0 +1,71 @@
+import { useEffect, useRef } from "react";
+import useHandTracking from "../hooks/useHandTracking";
+
+const Camera = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);  
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  useHandTracking(videoRef, canvasRef);
+
+  useEffect(() => {
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error("Error accessing webcam:", error);
+      }
+    };
+
+    startCamera();
+
+    return () => {
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  return (
+    <div style={{ position: "relative" }}>
+
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      
+      style={{
+        width: "1200px",
+        borderRadius: "12px",
+        transform: "scaleX(-1)",
+        pointerEvents: "none",
+        
+      }}
+    />
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "1200px",
+        height: "900px",
+        transform: "scaleX(-1)",
+        pointerEvents: "none",
+
+      }}
+    
+    />
+    </div>
+  );
+};
+
+export default Camera;
