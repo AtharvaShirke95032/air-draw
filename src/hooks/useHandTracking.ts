@@ -14,6 +14,25 @@ const useHandTracking = (
   const smoothedPointRef = useRef<{ x: number; y: number } | null>(null);
   const lastVideoTimeRef = useRef(-1);
   const lostFramesRef = useRef(0);
+  const drawFrameRef = useRef(0);
+  const eraseFrameRef = useRef(0);
+
+  const DRAW_CONFIRM_FRAMES = 4;
+  const ERASE_CONFIRM_FRAMES = 4;
+
+  const DRAW_PINCH_DISTANCE = 0.06;
+  const LOST_FRAME_LIMIT = 5;
+
+
+  const DRAW_SMOOTHING = 0.18;
+  const DRAW_LINE_WIDTH = 8;
+  const DRAW_COLOR = "red";
+  const MIN_DRAW_MOVEMENT = 2;
+
+
+  const ERASER_RADIUS = 40;
+
+
   useEffect(() => {
     const loadModel = async () => {
       const vision = await FilesetResolver.forVisionTasks(
@@ -86,8 +105,8 @@ const useHandTracking = (
 
       if (results.landmarks.length === 0) {
         lostFramesRef.current++;
-        
-        if (lostFramesRef.current > 5) {
+
+        if (lostFramesRef.current > LOST_FRAME_LIMIT) {
           previousPointRef.current = null;
           smoothedPointRef.current = null;
         }
@@ -124,17 +143,35 @@ const useHandTracking = (
       // console.log(distance);
       let tool: "draw" | "erase" | "none" = "none";
 
-      // Distance between thumb and index
-      if (distance < 0.06) {
+
+      const isDrawingGesture = distance < DRAW_PINCH_DISTANCE;
+      const isErasingGesture =
+        indexOpen && middleOpen && ringOpen && pinkyOpen;
+
+      if (isDrawingGesture) {
+        drawFrameRef.current = Math.min(
+          drawFrameRef.current + 1,
+          DRAW_CONFIRM_FRAMES
+        ); eraseFrameRef.current = 0;
+      } else if (isErasingGesture) {
+
+        eraseFrameRef.current = Math.min(
+          eraseFrameRef.current + 1,
+          ERASE_CONFIRM_FRAMES
+        ); drawFrameRef.current = 0;
+      } else {
+        drawFrameRef.current = 0;
+        eraseFrameRef.current = 0;
+      }
+
+      if (drawFrameRef.current >= DRAW_CONFIRM_FRAMES) {
         tool = "draw";
-      } else if (
-        indexOpen &&
-        middleOpen &&
-        ringOpen &&
-        pinkyOpen
-      ) {
+      }
+      else if (eraseFrameRef.current >= ERASE_CONFIRM_FRAMES) {
         tool = "erase";
       }
+      // Distance between thumb and index
+
 
 
       switch (tool) {
@@ -146,7 +183,7 @@ const useHandTracking = (
           let y = rawY;
 
           if (smoothedPointRef.current) {
-            const smoothing = 0.18;
+            const smoothing = DRAW_SMOOTHING;
 
             x =
               smoothedPointRef.current.x +
@@ -159,8 +196,8 @@ const useHandTracking = (
 
           smoothedPointRef.current = { x, y };
 
-          ctx.strokeStyle = "red";
-          ctx.lineWidth = 8;
+          ctx.strokeStyle = DRAW_COLOR;
+          ctx.lineWidth = DRAW_LINE_WIDTH;
           ctx.lineCap = "round";
           ctx.lineJoin = "round";
 
@@ -172,7 +209,7 @@ const useHandTracking = (
 
             const movement = Math.sqrt(dx * dx + dy * dy);
 
-            if (movement > 2) {
+            if (movement > MIN_DRAW_MOVEMENT) {
               const midX = (previousPointRef.current.x + x) / 2;
               const midY = (previousPointRef.current.y + y) / 2;
 
@@ -206,11 +243,11 @@ const useHandTracking = (
           ctx.save();
           ctx.globalCompositeOperation = "destination-out";
           ctx.beginPath();
-          ctx.arc(x, y, 40, 0, Math.PI * 2);
+          ctx.arc(x, y, ERASER_RADIUS, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
           previousPointRef.current = null
-          smoothedPointRef.current = null; 
+          smoothedPointRef.current = null;
           break;
         }
         default: {
@@ -218,7 +255,7 @@ const useHandTracking = (
           smoothedPointRef.current = null;
         }
       }
-      
+
 
       requestAnimationFrame(detectHands);
     };
@@ -229,3 +266,4 @@ const useHandTracking = (
 };
 
 export default useHandTracking;
+
