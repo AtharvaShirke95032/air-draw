@@ -37,39 +37,55 @@ const Camera = () => {
   }, []);
 
   return (
-    <div style={{ position: "relative" }}>
-
-    <video
-      ref={videoRef}
-      autoPlay
-      playsInline
-      muted
-      
+  <div
+    style={{
+      position: "relative",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
+    <div
       style={{
-        width: "1200px",
-        height: "900px",
-        borderRadius: "12px",
-        transform: "scaleX(-1)",
-        pointerEvents: "none",
-        
+        position: "relative",
+        borderRadius: 24,
+        overflow: "hidden",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
       }}
-    />
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "1200px",
-        height: "900px",
-        transform: "scaleX(-1)",
-        pointerEvents: "none",
+    >
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          width: "1200px",
+          height: "900px",
+          transform: "scaleX(-1)",
+        }}
+      />
 
-      }}
-    />
-    <Toolbar selectedColor={selectedColor} setSelectedColor={setSelectedColor} buttonRefs={toolbarButtonRefs} />
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "1200px",
+          height: "900px",
+          transform: "scaleX(-1)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <Toolbar
+        selectedColor={selectedColor}
+        setSelectedColor={setSelectedColor}
+        buttonRefs={toolbarButtonRefs}
+      />
     </div>
-  );
+  </div>
+);
 };
 
 export default Camera;

@@ -1,60 +1,86 @@
 interface ToolbarProps {
   selectedColor: string;
   setSelectedColor: (color: string) => void;
-  buttonRefs: React.MutableRefObject<
-    Record<string, HTMLButtonElement | null>
-  >;
+  buttonRefs: React.MutableRefObject<Record<string, HTMLButtonElement | null>>;
 }
 
-const COLORS = ["red", "blue", "green", "yellow", "black"];
+// const COLORS = ["red", "blue", "green", "yellow", "black"];
+// const COLORS = [
+//   "#FF3B30", // soft red (system red)
+//   "#FF9500", // orange
+//   "#FFCC00", // warm yellow
+//   "#34C759", // system green
+//   "#007AFF", // system blue
+//   "#AF52DE", // purple
+//   "#000000", // black (ink)
+//   "#8E8E93", // soft gray
+// ];
 
-const Toolbar = ({
-  selectedColor,
-  setSelectedColor,
-  buttonRefs
-}: ToolbarProps) => {
+const COLORS = [
+  "#E63946", // soft red
+  "#F4A261", // sand orange
+  "#E9C46A", // warm yellow
+  "#2A9D8F", // teal green
+  "#25b65c", // muted blue
+  "#9B5DE5", // soft purple
+  "#222222", // graphite black
+  "#ffffff", // light gray
+  
+];
+const Toolbar = ({ selectedColor, setSelectedColor, buttonRefs }: ToolbarProps) => {
   return (
     <div
       style={{
-        position: "absolute",
-        top: 80,
+        position: "fixed",
+        top: 30,
         left: "50%",
         transform: "translateX(-50%)",
+
         display: "flex",
-        gap: 16,
-        padding: "10px 18px",
-        background: "rgba(30,30,30,0.7)",
-        backdropFilter: "blur(12px)",
-        borderRadius: 40,
+        gap: 14,
+        padding: "10px 14px",
+
+        background: "rgba(255, 255, 255, 0.08)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+
+        borderRadius: 999,
+        border: "1px solid rgba(255, 255, 255, 0.12)",
+
+        boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
         zIndex: 100,
       }}
     >
       {COLORS.map((color) => (
         <button
-          ref={(el) => {
-    buttonRefs.current[color] = el;
-  }}
           key={color}
+          ref={(el) => {
+            buttonRefs.current[color] = el;
+          }}
           onClick={() => setSelectedColor(color)}
           style={{
-            width: 42,
-            height: 42,
+            width: 38,
+            height: 38,
             borderRadius: "50%",
+
+            backgroundColor: color,
+
             border:
               selectedColor === color
-                ? "4px solid white"
-                : "2px solid white",
-            backgroundColor: color,
-            cursor: "pointer",
-            transform:
-              selectedColor === color
-                ? "scale(1.2)"
-                : "scale(1)",
-            transition: "all 0.2s ease",
+                ? "2px solid rgba(255,255,255,0.9)"
+                : "2px solid rgba(255,255,255,0.2)",
+
             boxShadow:
               selectedColor === color
-                ? "0 0 12px white"
-                : "none",
+                ? "0 0 18px rgba(255,255,255,0.6)"
+                : "0 4px 10px rgba(0,0,0,0.25)",
+
+            transform: selectedColor === color ? "scale(1.15)" : "scale(1)",
+
+            transition: "all 0.2s ease",
+
+            cursor: "pointer",
+            outline: "none",
           }}
         />
       ))}
