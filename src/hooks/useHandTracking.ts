@@ -13,7 +13,7 @@ const useHandTracking = (
   const previousPointRef = useRef<{ x: number; y: number } | null>(null);
   const smoothedPointRef = useRef<{ x: number; y: number } | null>(null);
   const lastVideoTimeRef = useRef(-1);
-  const lostFramesRef = useRef(0);  
+  const lostFramesRef = useRef(0);
   useEffect(() => {
     const loadModel = async () => {
       const vision = await FilesetResolver.forVisionTasks(
@@ -30,7 +30,8 @@ const useHandTracking = (
       });
 
       handLandmarkerRef.current = handLandmarker;
-
+      console.log("handref", handLandmarkerRef.current);
+      console.log("handmarker", handLandmarker);
       console.log("✅ Hand model loaded");
     };
 
@@ -60,6 +61,11 @@ const useHandTracking = (
       if (!ctxRef.current) {
         ctxRef.current = canvas.getContext("2d");
       }
+      const ctx = ctxRef.current;
+      if (!ctx) {
+        requestAnimationFrame(detectHands);
+        return;
+      }
 
       if (video.readyState < 2) {
         requestAnimationFrame(detectHands);
@@ -79,16 +85,16 @@ const useHandTracking = (
       );
 
       if (results.landmarks.length === 0) {
-  lostFramesRef.current++;
+        lostFramesRef.current++;
+        
+        if (lostFramesRef.current > 5) {
+          previousPointRef.current = null;
+          smoothedPointRef.current = null;
+        }
 
-  if (lostFramesRef.current > 5) {
-    previousPointRef.current = null;
-    smoothedPointRef.current = null;
-  }
-
-  requestAnimationFrame(detectHands);
-  return;
-}
+        requestAnimationFrame(detectHands);
+        return;
+      }
 
       lostFramesRef.current = 0;
 
@@ -99,6 +105,7 @@ const useHandTracking = (
       const middleOpen = hand[12].y > hand[9].y;
       const ringOpen = hand[16].y > hand[13].y;
       const pinkyOpen = hand[20].y > hand[17].y;
+      const palm = hand[9];
       // const thumbOpen = hand[4].x < hand[3].x;
       if (
         // thumbOpen &&
@@ -107,80 +114,111 @@ const useHandTracking = (
         ringOpen &&
         pinkyOpen
       ) {
-        console.log("fist detected");
+        // console.log("fist detected");
+
       }
       const dx = thumbTip.x - indexTip.x;
       const dy = thumbTip.y - indexTip.y;
 
       const distance = Math.sqrt(dx * dx + dy * dy);
-      console.log(distance);
-      // let tool = "none";
+      // console.log(distance);
+      let tool: "draw" | "erase" | "none" = "none";
 
       // Distance between thumb and index
-      
-      if (distance < 0.09 && ctxRef.current) {
-        const ctx = ctxRef.current;
-
-        const rawX = indexTip.x * canvas.width;
-        const rawY = indexTip.y * canvas.height;
-
-        let x = rawX;
-        let y = rawY;
-
-        if (smoothedPointRef.current) {
-          const smoothing = 0.18;
-
-          x =
-            smoothedPointRef.current.x +
-            (rawX - smoothedPointRef.current.x) * smoothing;
-
-          y =
-            smoothedPointRef.current.y +
-            (rawY - smoothedPointRef.current.y) * smoothing;
-        }
-
-        smoothedPointRef.current = { x, y };
-
-        ctx.strokeStyle = "red";
-        ctx.lineWidth = 8;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-
-        if (!previousPointRef.current) {
-          previousPointRef.current = { x, y };
-        } else {
-          const dx = x - previousPointRef.current.x;
-          const dy = y - previousPointRef.current.y;
-
-          const movement = Math.sqrt(dx * dx + dy * dy);
-
-          if (movement > 2) {
-            const midX = (previousPointRef.current.x + x) / 2;
-            const midY = (previousPointRef.current.y + y) / 2;
-
-            ctx.beginPath();
-
-            ctx.moveTo(
-              previousPointRef.current.x,
-              previousPointRef.current.y
-            );
-
-            ctx.quadraticCurveTo(
-              previousPointRef.current.x,
-              previousPointRef.current.y,
-              midX,
-              midY
-            );
-
-            ctx.stroke();
-
-            previousPointRef.current = { x, y };
-          }
-        }
-      } else {
-        previousPointRef.current = null;
-        smoothedPointRef.current = null;
+      if (distance < 0.06) {
+        tool = "draw";
+      } else if (
+        indexOpen &&
+        middleOpen &&
+        ringOpen &&
+        pinkyOpen
+      ) {
+        tool = "erase";
       }
+
+
+      switch (tool) {
+        case "draw": {
+          const rawX = indexTip.x * canvas.width;
+          const rawY = indexTip.y * canvas.height;
+
+          let x = rawX;
+          let y = rawY;
+
+          if (smoothedPointRef.current) {
+            const smoothing = 0.18;
+
+            x =
+              smoothedPointRef.current.x +
+              (rawX - smoothedPointRef.current.x) * smoothing;
+
+            y =
+              smoothedPointRef.current.y +
+              (rawY - smoothedPointRef.current.y) * smoothing;
+          }
+
+          smoothedPointRef.current = { x, y };
+
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 8;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+
+          if (!previousPointRef.current) {
+            previousPointRef.current = { x, y };
+          } else {
+            const dx = x - previousPointRef.current.x;
+            const dy = y - previousPointRef.current.y;
+
+            const movement = Math.sqrt(dx * dx + dy * dy);
+
+            if (movement > 2) {
+              const midX = (previousPointRef.current.x + x) / 2;
+              const midY = (previousPointRef.current.y + y) / 2;
+
+              ctx.beginPath();
+
+              ctx.moveTo(
+                previousPointRef.current.x,
+                previousPointRef.current.y
+              );
+
+              ctx.quadraticCurveTo(
+                previousPointRef.current.x,
+                previousPointRef.current.y,
+                midX,
+                midY
+              );
+
+              ctx.stroke();
+
+              previousPointRef.current = { x, y };
+            }
+          }
+          break;
+        }
+        case "erase": {
+          // console.log("erase")
+          // let x = indexTip.x * canvas.width;
+          // let y = indexTip.y * canvas.height;
+          let x = palm.x * canvas.width;
+          let y = palm.y * canvas.height;
+          ctx.save();
+          ctx.globalCompositeOperation = "destination-out";
+          ctx.beginPath();
+          ctx.arc(x, y, 40, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          previousPointRef.current = null
+          smoothedPointRef.current = null; 
+          break;
+        }
+        default: {
+          previousPointRef.current = null;
+          smoothedPointRef.current = null;
+        }
+      }
+      
 
       requestAnimationFrame(detectHands);
     };
