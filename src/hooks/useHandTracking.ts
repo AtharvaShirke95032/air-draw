@@ -4,7 +4,7 @@ import {
   HandLandmarker,
 } from "@mediapipe/tasks-vision";
 import {
-  DRAW_COLOR,
+  // DRAW_COLOR,
   DRAW_CONFIRM_FRAMES,
   DRAW_LINE_WIDTH,
   DRAW_PINCH_DISTANCE,
@@ -19,7 +19,10 @@ import type { Point, Tool } from "../types/hand";
 
 const useHandTracking = (
   videoRef: RefObject<HTMLVideoElement | null>,
-  canvasRef: RefObject<HTMLCanvasElement | null>
+  canvasRef: RefObject<HTMLCanvasElement | null>,
+  selectedColor: string,
+  setSelectedColor: (color: string) => void,
+  toolbarButtonRefs: React.MutableRefObject<Record<string, HTMLButtonElement | null>>
 ) => {
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -29,11 +32,16 @@ const useHandTracking = (
   const lostFramesRef = useRef(0);
   const drawFrameRef = useRef(0);
   const eraseFrameRef = useRef(0);
-
-
-
+  const selectedColorRef = useRef(selectedColor);
 
   useEffect(() => {
+    selectedColorRef.current = selectedColor;
+    console.log(toolbarButtonRefs.current);
+
+  }, [selectedColor]);
+
+  useEffect(() => {
+
     const loadModel = async () => {
       const vision = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
@@ -125,17 +133,39 @@ const useHandTracking = (
       const ringOpen = hand[16].y > hand[13].y;
       const pinkyOpen = hand[20].y > hand[17].y;
       const palm = hand[9];
-      // const thumbOpen = hand[4].x < hand[3].x;
-      if (
-        // thumbOpen &&
-        indexOpen &&
-        middleOpen &&
-        ringOpen &&
-        pinkyOpen
-      ) {
-        // console.log("fist detected");
 
+      const canvasRect = canvas.getBoundingClientRect();
+
+      const fingerX =
+        canvasRect.left + (1 - indexTip.x) * canvasRect.width;
+
+      const fingerY =
+        canvasRect.top + indexTip.y * canvasRect.height;
+      let hoveredColor: string | null = null;
+      for (const [color, button] of Object.entries(toolbarButtonRefs.current)) {
+        if (!button) continue;
+
+        const rect = button.getBoundingClientRect();
+
+        const isHovering =
+          fingerX >= rect.left &&
+          fingerX <= rect.right &&
+          fingerY >= rect.top &&
+          fingerY <= rect.bottom;
+
+        if (isHovering) {
+          hoveredColor = color;
+          
+        }
       }
+      if(hoveredColor && hoveredColor !== selectedColorRef.current) {
+        setSelectedColor(hoveredColor);
+      }
+      // console.log(fingerX, fingerY);
+      // const thumbOpen = hand[4].x < hand[3].x;
+      // const fingerX = indexTip.x * canvas.width;
+      // const fingerY = indexTip.y * canvas.height;
+      // console.log("fingerX", fingerX, "fingerY", fingerY);
       const dx = thumbTip.x - indexTip.x;
       const dy = thumbTip.y - indexTip.y;
 
@@ -196,7 +226,7 @@ const useHandTracking = (
 
           smoothedPointRef.current = { x, y };
 
-          ctx.strokeStyle = DRAW_COLOR;
+          ctx.strokeStyle = selectedColorRef.current;
           ctx.lineWidth = DRAW_LINE_WIDTH;
           ctx.lineCap = "round";
           ctx.lineJoin = "round";

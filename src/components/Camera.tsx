@@ -1,10 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import useHandTracking from "../hooks/useHandTracking";
+import Toolbar from "./toolbar";
 
 const Camera = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);  
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  useHandTracking(videoRef, canvasRef);
+  const [selectedColor, setSelectedColor] = useState("black");
+  const toolbarButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  useHandTracking(videoRef, canvasRef, selectedColor, setSelectedColor ,toolbarButtonRefs);
 
   useEffect(() => {
     const startCamera = async () => {
@@ -44,6 +47,7 @@ const Camera = () => {
       
       style={{
         width: "1200px",
+        height: "900px",
         borderRadius: "12px",
         transform: "scaleX(-1)",
         pointerEvents: "none",
@@ -62,8 +66,8 @@ const Camera = () => {
         pointerEvents: "none",
 
       }}
-    
     />
+    <Toolbar selectedColor={selectedColor} setSelectedColor={setSelectedColor} buttonRefs={toolbarButtonRefs} />
     </div>
   );
 };

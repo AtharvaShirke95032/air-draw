@@ -11,7 +11,9 @@ function App() {
         background: "#121212",
       }}
     >
-      <Camera />
+      <Camera 
+      />
+      
     </div>
   );
 }
