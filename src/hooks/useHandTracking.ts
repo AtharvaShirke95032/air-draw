@@ -3,6 +3,19 @@ import {
   FilesetResolver,
   HandLandmarker,
 } from "@mediapipe/tasks-vision";
+import {
+  DRAW_COLOR,
+  DRAW_CONFIRM_FRAMES,
+  DRAW_LINE_WIDTH,
+  DRAW_PINCH_DISTANCE,
+  DRAW_SMOOTHING,
+  ERASE_CONFIRM_FRAMES,
+  ERASER_RADIUS,
+  LOST_FRAME_LIMIT,
+  MIN_DRAW_MOVEMENT,
+} from "../constants/handTracking";
+
+import type { Point, Tool } from "../types/hand";
 
 const useHandTracking = (
   videoRef: RefObject<HTMLVideoElement | null>,
@@ -10,27 +23,14 @@ const useHandTracking = (
 ) => {
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
-  const previousPointRef = useRef<{ x: number; y: number } | null>(null);
-  const smoothedPointRef = useRef<{ x: number; y: number } | null>(null);
+  const previousPointRef = useRef<Point | null>(null);
+  const smoothedPointRef = useRef<Point | null>(null);
   const lastVideoTimeRef = useRef(-1);
   const lostFramesRef = useRef(0);
   const drawFrameRef = useRef(0);
   const eraseFrameRef = useRef(0);
 
-  const DRAW_CONFIRM_FRAMES = 4;
-  const ERASE_CONFIRM_FRAMES = 4;
 
-  const DRAW_PINCH_DISTANCE = 0.06;
-  const LOST_FRAME_LIMIT = 5;
-
-
-  const DRAW_SMOOTHING = 0.18;
-  const DRAW_LINE_WIDTH = 8;
-  const DRAW_COLOR = "red";
-  const MIN_DRAW_MOVEMENT = 2;
-
-
-  const ERASER_RADIUS = 40;
 
 
   useEffect(() => {
@@ -141,7 +141,7 @@ const useHandTracking = (
 
       const distance = Math.sqrt(dx * dx + dy * dy);
       // console.log(distance);
-      let tool: "draw" | "erase" | "none" = "none";
+      let tool: Tool = "none";
 
 
       const isDrawingGesture = distance < DRAW_PINCH_DISTANCE;
