@@ -22,7 +22,8 @@ const useHandTracking = (
   canvasRef: RefObject<HTMLCanvasElement | null>,
   selectedColor: string,
   setSelectedColor: (color: string) => void,
-  toolbarButtonRefs: React.MutableRefObject<Record<string, HTMLButtonElement | null>>
+  toolbarButtonRefs: React.MutableRefObject<Record<string, HTMLButtonElement | null>>,
+  setcursors: React.Dispatch<React.SetStateAction<{thumb: {x:number,y:number,visible:boolean}, finger: {x:number,y:number,visible:boolean}}>>
 ) => {
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -33,7 +34,12 @@ const useHandTracking = (
   const drawFrameRef = useRef(0);
   const eraseFrameRef = useRef(0);
   const selectedColorRef = useRef(selectedColor);
+  const fingerCursorVisibleRef = useRef(false);
+  const thumbCursorVisibleRef = useRef(false);
+  const thumbCursorRef = useRef({ x: 0, y: 0 });
+const fingerCursorRef = useRef({ x: 0, y: 0 });
 
+const CURSOR_SMOOTHING = 0.35;
   useEffect(() => {
     selectedColorRef.current = selectedColor;
     console.log(toolbarButtonRefs.current);
@@ -111,17 +117,33 @@ const useHandTracking = (
         video.currentTime * 1000
       );
 
-      if (results.landmarks.length === 0) {
-        lostFramesRef.current++;
+ if (results.landmarks.length === 0) {
+  lostFramesRef.current++;
 
-        if (lostFramesRef.current > LOST_FRAME_LIMIT) {
-          previousPointRef.current = null;
-          smoothedPointRef.current = null;
-        }
+  if (lostFramesRef.current > LOST_FRAME_LIMIT) {
 
-        requestAnimationFrame(detectHands);
-        return;
-      }
+    setcursors({
+      thumb: {
+        x: thumbCursorRef.current.x,
+        y: thumbCursorRef.current.y,
+        visible: false,
+      },
+      finger: {
+        x: fingerCursorRef.current.x,
+        y: fingerCursorRef.current.y,
+        visible: false,
+      },
+    });
+    fingerCursorVisibleRef.current = false;
+    thumbCursorVisibleRef.current = false;
+
+    previousPointRef.current = null;
+    smoothedPointRef.current = null;
+  }
+
+  requestAnimationFrame(detectHands);
+  return;
+}
 
       lostFramesRef.current = 0;
 
@@ -135,12 +157,45 @@ const useHandTracking = (
       const palm = hand[9];
 
       const canvasRect = canvas.getBoundingClientRect();
-
+      const thumbX =
+        canvasRect.left + (1 - thumbTip.x) * canvasRect.width;
+      const thumbY =
+        canvasRect.top + thumbTip.y * canvasRect.height;
       const fingerX =
         canvasRect.left + (1 - indexTip.x) * canvasRect.width;
 
       const fingerY =
         canvasRect.top + indexTip.y * canvasRect.height;
+        
+
+       thumbCursorRef.current.x +=
+  (thumbX - thumbCursorRef.current.x) * CURSOR_SMOOTHING;
+
+thumbCursorRef.current.y +=
+  (thumbY - thumbCursorRef.current.y) * CURSOR_SMOOTHING;
+
+fingerCursorRef.current.x +=
+  (fingerX - fingerCursorRef.current.x) * CURSOR_SMOOTHING;
+
+fingerCursorRef.current.y +=
+  (fingerY - fingerCursorRef.current.y) * CURSOR_SMOOTHING;
+
+setcursors({
+  thumb: {
+    x: thumbCursorRef.current.x,
+    y: thumbCursorRef.current.y,
+    visible: true,
+  },
+  finger: {
+    x: fingerCursorRef.current.x,
+    y: fingerCursorRef.current.y,
+    visible: true,
+  },
+});
+
+fingerCursorVisibleRef.current = true;
+        thumbCursorVisibleRef.current = true;
+        
       let hoveredColor: string | null = null;
       for (const [color, button] of Object.entries(toolbarButtonRefs.current)) {
         if (!button) continue;
@@ -194,7 +249,7 @@ const useHandTracking = (
         eraseFrameRef.current = 0;
       }
 
-      if (drawFrameRef.current >= DRAW_CONFIRM_FRAMES) {
+      if (drawFrameRef.current >= DRAW_CONFIRM_FRAMES && fingerCursorVisibleRef.current && thumbCursorVisibleRef.current) {
         tool = "draw";
       }
       else if (eraseFrameRef.current >= ERASE_CONFIRM_FRAMES) {

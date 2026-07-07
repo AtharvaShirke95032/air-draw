@@ -1,14 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import useHandTracking from "../hooks/useHandTracking";
 import Toolbar from "./toolbar";
+import Cursor from "./cursor";
 
 const Camera = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);  
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [selectedColor, setSelectedColor] = useState("black");
   const toolbarButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  useHandTracking(videoRef, canvasRef, selectedColor, setSelectedColor ,toolbarButtonRefs);
-
+const [cursors, setCursors] = useState({
+  thumb: {
+    x: 0,
+    y: 0,
+    visible: false,
+  },
+  finger: {
+    x: 0,
+    y: 0,
+    visible: false,
+  },
+});
+  useHandTracking(videoRef, canvasRef, selectedColor, setSelectedColor ,toolbarButtonRefs,setCursors);
+  
   useEffect(() => {
     const startCamera = async () => {
       try {
@@ -83,6 +96,10 @@ const Camera = () => {
         setSelectedColor={setSelectedColor}
         buttonRefs={toolbarButtonRefs}
       />
+
+{cursors.thumb.visible && <Cursor selectedColor={selectedColor} cursors={cursors.thumb} />}
+{cursors.finger.visible && <Cursor selectedColor={selectedColor} cursors={cursors.finger} />}
+
     </div>
   </div>
 );
